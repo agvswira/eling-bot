@@ -6,6 +6,8 @@ import { isAIEnabled } from "../ai";
 
 const BOT_NAME = (process.env.BOT_NAME || "Eling").toLowerCase();
 const ADMIN_NUMBER = (process.env.ADMIN_NUMBER || "").replace(/\D/g, "");
+// Set DEBUG=1 di .env untuk melihat log deteksi mention di grup.
+const DEBUG = process.env.DEBUG === "1" || process.env.DEBUG === "true";
 
 /** Ambil teks dari berbagai tipe pesan WhatsApp. */
 function extractText(msg: proto.IMessage | null | undefined): string {
@@ -26,17 +28,27 @@ function numberFromJid(jid: string | null | undefined): string {
   return jid.split("@")[0].split(":")[0].replace(/\D/g, "");
 }
 
+/** Apakah sebuah JID mention cocok dengan salah satu identitas bot (nomor / LID)? */
+function matchesBot(jid: string, botIds: string[]): boolean {
+  const num = numberFromJid(jid);
+  return botIds.some((b) => {
+    // Cocokkan JID penuh (mis. "xxx@lid") ATAU bagian nomornya.
+    if (jid === b) return true;
+    const bNum = numberFromJid(b);
+    return bNum !== "" && bNum === num;
+  });
+}
+
 /** Cek apakah bot di-mention (via mentionedJid atau penyebutan nama). */
 function isBotMentioned(
   msg: proto.IMessage | null | undefined,
   text: string,
-  botJid: string,
+  botIds: string[],
 ): boolean {
   const ctxInfo =
     msg?.extendedTextMessage?.contextInfo || (msg as any)?.contextInfo;
   const mentioned: string[] = ctxInfo?.mentionedJid || [];
-  const botNum = numberFromJid(botJid);
-  if (mentioned.some((j) => numberFromJid(j) === botNum)) return true;
+  if (mentioned.some((j) => matchesBot(j, botIds))) return true;
 
   // Fallback tekstual: sebut nama bot di awal/dalam pesan.
   return (
@@ -60,7 +72,7 @@ function stripMention(text: string): string {
 export async function handleMessage(
   sock: WASocket,
   m: proto.IWebMessageInfo,
-  botJid: string,
+  botIds: string[],
 ): Promise<void> {
   // Abaikan pesan dari bot sendiri & pesan tanpa konten.
   if (m.key.fromMe) return;
@@ -71,7 +83,8 @@ export async function handleMessage(
   if (!text.trim()) return;
 
   const isGroup = remoteJid.endsWith("@g.us");
-  const groupId = isGroup ? remoteJid : undefined;
+  // Scope data: pakai JID chat (grup atau DM) sebagai identitas penyimpanan.
+  const groupId = remoteJid;
 
   // Pengirim: di grup pakai participant, di pribadi pakai remoteJid.
   const senderJid = isGroup ? m.key.participant || "" : remoteJid;
@@ -90,11 +103,24 @@ export async function handleMessage(
       return;
     }
 
-    // 2) AI mode: bot di-mention (atau reply ke pesan bot di grup).
-    const mentioned = isBotMentioned(m.message, trimmed, botJid);
-    const isReplyToBot = isReplyTargetingBot(m.message, botJid);
+    // 2) AI mode: di grup harus di-mention/reply; di DM cukup kirim pesan.
+    const mentioned = isBotMentioned(m.message, trimmed, botIds);
+    const isReplyToBot = isReplyTargetingBot(m.message, botIds);
 
-    if ((mentioned || isReplyToBot) && isAIEnabled()) {
+    if (DEBUG && isGroup) {
+      const ctxInfo =
+        m.message?.extendedTextMessage?.contextInfo ||
+        (m.message as any)?.contextInfo;
+      console.log(
+        `[debug] grup pesan: "${trimmed}" | mentionedJid=${JSON.stringify(
+          ctxInfo?.mentionedJid || [],
+        )} | botIds=${JSON.stringify(botIds)} | mentioned=${mentioned} replyToBot=${isReplyToBot}`,
+      );
+    }
+
+    const shouldUseAI = isGroup ? mentioned || isReplyToBot : true;
+
+    if (shouldUseAI && isAIEnabled()) {
       const clean = stripMention(trimmed);
       await sock.sendPresenceUpdate("composing", remoteJid).catch(() => {});
       const reply = await handleMention(clean, { sender, groupId, isAdmin });
@@ -117,13 +143,13 @@ export async function handleMessage(
 /** Apakah pesan ini me-reply pesan yang dikirim oleh bot? */
 function isReplyTargetingBot(
   msg: proto.IMessage | null | undefined,
-  botJid: string,
+  botIds: string[],
 ): boolean {
   const ctxInfo = msg?.extendedTextMessage?.contextInfo;
   if (!ctxInfo) return false;
   const participant = ctxInfo.participant;
   if (!participant) return false;
-  return numberFromJid(participant) === numberFromJid(botJid);
+  return matchesBot(participant, botIds);
 }
 
 /** Kirim balasan sambil mengutip pesan asli. */

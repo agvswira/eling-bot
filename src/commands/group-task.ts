@@ -11,7 +11,7 @@ const USAGE =
 
 export async function handleGroupTask(
   args: string[],
-  ctx: CommandContext
+  ctx: CommandContext,
 ): Promise<string> {
   const sub = (args[0] || "").toLowerCase();
   const rest = args.slice(1);
@@ -20,7 +20,7 @@ export async function handleGroupTask(
     case "":
     case "list":
     case "ls":
-      return list();
+      return list(ctx);
     case "delete":
     case "del":
     case "hapus":
@@ -28,33 +28,36 @@ export async function handleGroupTask(
     default: {
       // "!grouptask 2" → tampilkan detail by id
       const id = Number(sub);
-      if (!Number.isNaN(id)) return detail(id);
+      if (!Number.isNaN(id)) return detail(id, ctx);
       return USAGE;
     }
   }
 }
 
-async function list(): Promise<string> {
-  const items = await store.getAll();
+async function list(ctx: CommandContext): Promise<string> {
+  const items = await store.getAll(ctx.groupId);
   return formatGroupTaskList(items);
 }
 
-async function detail(id: number): Promise<string> {
-  const t = await store.getById(id);
+async function detail(id: number, ctx: CommandContext): Promise<string> {
+  const t = await store.getById(id, ctx.groupId);
   if (!t) return `⚠️ Tugas kelompok dengan ID ${id} tidak ditemukan.`;
   return formatGroupTask(t) + `\n\n_Dibuat oleh: ${t.createdBy}_`;
 }
 
-async function remove(idStr: string | undefined, ctx: CommandContext): Promise<string> {
+async function remove(
+  idStr: string | undefined,
+  ctx: CommandContext,
+): Promise<string> {
   const id = Number(idStr);
   if (!idStr || Number.isNaN(id)) {
     return "⚠️ Sebutkan ID-nya. Contoh: `!grouptask delete 1`";
   }
-  const t = await store.getById(id);
+  const t = await store.getById(id, ctx.groupId);
   if (!t) return `⚠️ Tugas kelompok dengan ID ${id} tidak ditemukan.`;
   if (t.createdBy !== ctx.sender && !ctx.isAdmin) {
     return "🚫 Kamu hanya bisa menghapus tugas kelompok yang kamu buat sendiri. (admin bisa hapus semua)";
   }
-  await store.remove(id);
+  await store.remove(id, ctx.groupId);
   return `🗑️ Tugas kelompok *"${t.title}"* dihapus.`;
 }

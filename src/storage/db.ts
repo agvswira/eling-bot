@@ -27,7 +27,10 @@ export async function readJSON<T>(fileName: string, fallback: T): Promise<T> {
     return JSON.parse(raw) as T;
   } catch (err: any) {
     if (err?.code === "ENOENT") return fallback;
-    console.error(`⚠️ Gagal membaca ${fileName}, memakai nilai default:`, err?.message);
+    console.error(
+      `⚠️ Gagal membaca ${fileName}, memakai nilai default:`,
+      err?.message,
+    );
     return fallback;
   }
 }
@@ -48,4 +51,19 @@ export async function writeJSON<T>(fileName: string, data: T): Promise<void> {
 /** Compute the next incremental id for a list of records. */
 export function nextId(items: { id: number }[]): number {
   return items.reduce((max, item) => Math.max(max, item.id), 0) + 1;
+}
+
+/**
+ * Compute the next incremental id scoped to a single group/chat.
+ * ID berurut per-grup (tiap grup mulai dari 1), supaya UX rapi.
+ */
+export function nextIdInGroup(
+  items: { id: number; groupId?: string }[],
+  groupId?: string,
+): number {
+  return (
+    items
+      .filter((item) => item.groupId === groupId)
+      .reduce((max, item) => Math.max(max, item.id), 0) + 1
+  );
 }

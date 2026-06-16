@@ -9,9 +9,9 @@ export interface Deadline {
   isDone: boolean;
   createdBy: string; // nomor WA yang menambahkan
   createdAt: string;
-  groupId?: string; // JID grup tempat deadline dibuat (untuk reminder)
-  remindedH1?: boolean; // sudah dikirim reminder H-1
-  remindedH3?: boolean; // sudah dikirim reminder 3 jam sebelum
+  groupId?: string; // JID chat (grup/DM) asal — untuk isolasi data & target reminder
+  lastDailyReminder?: string; // tanggal WITA (YYYY-MM-DD) terakhir kirim reminder harian
+  remindedOverdue?: boolean; // sudah kirim notifikasi "deadline terlewat"
 }
 
 export interface SavedLink {
@@ -20,6 +20,7 @@ export interface SavedLink {
   url: string;
   addedBy: string; // nomor WA yang menambahkan
   addedAt: string;
+  groupId?: string; // JID chat (grup/DM) tempat link disimpan — untuk isolasi data
 }
 
 export interface GroupTask {

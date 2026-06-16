@@ -1,14 +1,24 @@
 import { Deadline, SavedLink, GroupTask } from "../types";
-import { formatTanggalIndo, sisaWaktu } from "./time";
+import { formatTanggalIndo, sisaWaktu, deadlineToInstant } from "./time";
+
+/** Apakah deadline sudah lewat? */
+function isOverdue(d: Deadline): boolean {
+  return Date.now() > deadlineToInstant(d.dueDate, d.dueTime).getTime();
+}
 
 /** Satu baris ringkas deadline untuk list. */
 export function formatDeadlineLine(d: Deadline): string {
-  const status = d.isDone ? "✅" : "📌";
+  const overdue = !d.isDone && isOverdue(d);
+  const status = d.isDone ? "✅" : overdue ? "⚠️" : "📌";
   const course = d.course ? ` [${d.course}]` : "";
   return (
     `${status} *${d.id}.* ${d.title}${course}\n` +
     `   ⏰ ${formatTanggalIndo(d.dueDate)} pukul ${d.dueTime} WITA` +
-    (d.isDone ? "" : `\n   ⏳ ${sisaWaktu(d.dueDate, d.dueTime)}`)
+    (d.isDone
+      ? ""
+      : overdue
+        ? `\n   ⛔ SUDAH LEWAT DEADLINE`
+        : `\n   ⏳ ${sisaWaktu(d.dueDate, d.dueTime)}`)
   );
 }
 
@@ -26,15 +36,18 @@ export function formatDeadlineDetail(d: Deadline): string {
   const lines: string[] = [];
   const judul = d.course ? `${d.course} — ${d.title}` : d.title;
   lines.push(`📚 *${judul}*`);
-  lines.push(`⏰ Deadline: ${formatTanggalIndo(d.dueDate)}, pukul ${d.dueTime} WITA`);
+  lines.push(
+    `⏰ Deadline: ${formatTanggalIndo(d.dueDate)}, pukul ${d.dueTime} WITA`,
+  );
   if (d.description) lines.push(`📝 Deskripsi: ${d.description}`);
   if (d.link) lines.push(`🔗 Link: ${d.link}`);
-  if (!d.isDone) lines.push(`⏳ Sisa waktu: ${sisaWaktu(d.dueDate, d.dueTime)}`);
+  if (!d.isDone)
+    lines.push(`⏳ Sisa waktu: ${sisaWaktu(d.dueDate, d.dueTime)}`);
   else lines.push(`✅ Status: Selesai`);
   return lines.join("\n");
 }
 
-/** Reminder deadline (sesuai format spec). */
+/** Reminder harian deadline (dikirim tiap 07:00 WITA sampai deadline). */
 export function formatReminder(d: Deadline): string {
   return (
     `🔔 *REMINDER DEADLINE!*\n` +
@@ -44,12 +57,25 @@ export function formatReminder(d: Deadline): string {
   );
 }
 
+/** Notifikasi saat deadline sudah terlewat. */
+export function formatOverdue(d: Deadline): string {
+  return (
+    `⛔ *DEADLINE TERLEWAT!*\n` +
+    `📌 Tugas: ${d.title}${d.course ? ` (${d.course})` : ""}\n` +
+    `⏰ Deadline: ${formatTanggalIndo(d.dueDate)} pukul ${d.dueTime} WITA\n` +
+    `⏱️ Waktunya sudah habis. Semoga sudah selesai ya! Tandai dengan \`!deadline done ${d.id}\` kalau sudah beres.`
+  );
+}
+
 /** Satu link untuk list. */
 export function formatLinkLine(l: SavedLink): string {
   return `🔗 *${l.id}.* ${l.label}\n   ${l.url}`;
 }
 
-export function formatLinkList(items: SavedLink[], title = "DAFTAR LINK TERSIMPAN"): string {
+export function formatLinkList(
+  items: SavedLink[],
+  title = "DAFTAR LINK TERSIMPAN",
+): string {
   if (items.length === 0) {
     return "📭 Belum ada link tersimpan. Tambah dengan:\n`!link add <label> <url>`";
   }

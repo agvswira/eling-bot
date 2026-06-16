@@ -52,14 +52,19 @@ async function start(): Promise<void> {
       const loggedOut = statusCode === DisconnectReason.loggedOut;
       console.log(
         `❌ Koneksi terputus (code: ${statusCode ?? "?"}).` +
-          (loggedOut ? " Sesi logout — hapus folder auth & scan ulang." : " Mencoba reconnect...")
+          (loggedOut
+            ? " Sesi logout — hapus folder auth & scan ulang."
+            : " Mencoba reconnect..."),
       );
       if (!loggedOut) {
         setTimeout(() => start().catch(console.error), 3000);
       }
     } else if (connection === "open") {
       const me = sock.user?.id ? jidNormalizedUser(sock.user.id) : "";
-      console.log(`✅ ${BOT_NAME} terhubung sebagai ${me}`);
+      const lid = (sock.user as any)?.lid || "";
+      console.log(
+        `✅ ${BOT_NAME} terhubung sebagai ${me}${lid ? ` (lid: ${lid})` : ""}`,
+      );
       console.log("🚀 Bot siap menerima pesan!\n");
       startReminderScheduler(sock);
     }
@@ -67,10 +72,14 @@ async function start(): Promise<void> {
 
   sock.ev.on("messages.upsert", async ({ messages, type }) => {
     if (type !== "notify") return;
-    const botJid = sock.user?.id ? jidNormalizedUser(sock.user.id) : "";
+    // Kumpulkan semua identitas bot: JID nomor & LID (WhatsApp versi baru).
+    const botIds = [
+      sock.user?.id ? jidNormalizedUser(sock.user.id) : "",
+      (sock.user as any)?.lid || "",
+    ].filter(Boolean);
     for (const m of messages) {
       try {
-        await handleMessage(sock, m as proto.IWebMessageInfo, botJid);
+        await handleMessage(sock, m as proto.IWebMessageInfo, botIds);
       } catch (err: any) {
         console.error("Error pada messages.upsert:", err?.message || err);
       }

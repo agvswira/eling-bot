@@ -32,18 +32,43 @@ function pad(n: number): string {
 function monthIndex(name: string): number | null {
   const n = name.trim().toLowerCase();
   const map: Record<string, number> = {
-    jan: 1, januari: 1, january: 1,
-    feb: 2, februari: 2, february: 2,
-    mar: 3, maret: 3, march: 3,
-    apr: 4, april: 4,
-    mei: 5, may: 5,
-    jun: 6, juni: 6, june: 6,
-    jul: 7, juli: 7, july: 7,
-    agu: 8, agustus: 8, agt: 8, aug: 8, august: 8,
-    sep: 9, september: 9, sept: 9,
-    okt: 10, oktober: 10, oct: 10, october: 10,
-    nov: 11, november: 11,
-    des: 12, desember: 12, dec: 12, december: 12,
+    jan: 1,
+    januari: 1,
+    january: 1,
+    feb: 2,
+    februari: 2,
+    february: 2,
+    mar: 3,
+    maret: 3,
+    march: 3,
+    apr: 4,
+    april: 4,
+    mei: 5,
+    may: 5,
+    jun: 6,
+    juni: 6,
+    june: 6,
+    jul: 7,
+    juli: 7,
+    july: 7,
+    agu: 8,
+    agustus: 8,
+    agt: 8,
+    aug: 8,
+    august: 8,
+    sep: 9,
+    september: 9,
+    sept: 9,
+    okt: 10,
+    oktober: 10,
+    oct: 10,
+    october: 10,
+    nov: 11,
+    november: 11,
+    des: 12,
+    desember: 12,
+    dec: 12,
+    december: 12,
   };
   return map[n] ?? null;
 }
@@ -113,7 +138,9 @@ export function sisaWaktu(dueDate: string, dueTime: string): string {
   if (diffMin < 60) return `${diffMin} menit lagi`;
   if (diffHour < 24) {
     const sisaMenit = Math.round((diffMs - diffHour * 3_600_000) / 60000);
-    return sisaMenit > 0 ? `${diffHour} jam ${sisaMenit} menit lagi` : `${diffHour} jam lagi`;
+    return sisaMenit > 0
+      ? `${diffHour} jam ${sisaMenit} menit lagi`
+      : `${diffHour} jam lagi`;
   }
   if (diffDay === 1) return "besok";
   return `${diffDay} hari lagi`;
@@ -138,7 +165,7 @@ export function parseDeadlineInput(raw: string): ParsedDeadline | null {
 
   // 1) Nama bulan: "<judul> 20 Juni 2026 [23.59]"
   let m = text.match(
-    /^(.*?)\s+(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})(?:\s+(\d{1,2})[:.](\d{1,2}))?$/
+    /^(.*?)\s+(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})(?:\s+(\d{1,2})[:.](\d{1,2}))?$/,
   );
   if (m) {
     const month = monthIndex(m[3]);
@@ -149,7 +176,7 @@ export function parseDeadlineInput(raw: string): ParsedDeadline | null {
 
   // 2) Numerik DMY: "<judul> 25-06-2026 [23:59]"
   m = text.match(
-    /^(.*?)\s+(\d{1,2})[-/](\d{1,2})[-/](\d{4})(?:\s+(\d{1,2})[:.](\d{1,2}))?$/
+    /^(.*?)\s+(\d{1,2})[-/](\d{1,2})[-/](\d{4})(?:\s+(\d{1,2})[:.](\d{1,2}))?$/,
   );
   if (m) {
     return build(m[1], +m[4], +m[3], +m[2], m[5], m[6]);
@@ -157,7 +184,7 @@ export function parseDeadlineInput(raw: string): ParsedDeadline | null {
 
   // 3) ISO: "<judul> 2026-06-25 [23:59]"
   m = text.match(
-    /^(.*?)\s+(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T](\d{1,2})[:.](\d{1,2}))?$/
+    /^(.*?)\s+(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T](\d{1,2})[:.](\d{1,2}))?$/,
   );
   if (m) {
     return build(m[1], +m[2], +m[3], +m[4], m[5], m[6]);
@@ -172,7 +199,7 @@ function build(
   month: number,
   day: number,
   hourRaw?: string,
-  minRaw?: string
+  minRaw?: string,
 ): ParsedDeadline | null {
   if (month < 1 || month > 12 || day < 1 || day > 31) return null;
   const hh = hourRaw != null ? Number(hourRaw) : 23;
@@ -195,4 +222,76 @@ export function isValidDate(s: string): boolean {
 /** Validasi sederhana format HH:mm. */
 export function isValidTime(s: string): boolean {
   return /^([01]\d|2[0-3]):[0-5]\d$/.test(s);
+}
+
+/**
+ * Normalisasi input jam yang longgar ke "HH:mm".
+ * Menerima: "23.59", "23:59", "2359", "23", "7", "7.5" -> "07:30".
+ * Mengembalikan null jika tidak bisa diparse jadi jam valid.
+ */
+export function normalizeTime(input: string | undefined | null): string | null {
+  if (input == null) return null;
+  let s = String(input).trim().toLowerCase();
+  if (!s) return null;
+
+  // Buang label "pukul"/"jam" dan kata "wita/wib/wit".
+  s = s
+    .replace(/\b(pukul|jam)\b/g, "")
+    .replace(/\b(wita|wib|wit)\b/g, "")
+    .trim();
+
+  let hh: number;
+  let mm = 0;
+
+  let m = s.match(/^(\d{1,2})[:.](\d{1,2})$/); // 23:59 / 23.59
+  if (m) {
+    hh = +m[1];
+    mm = +m[2];
+  } else if ((m = s.match(/^(\d{2})(\d{2})$/))) {
+    // 2359
+    hh = +m[1];
+    mm = +m[2];
+  } else if ((m = s.match(/^(\d{1,2})$/))) {
+    // 23 / 7
+    hh = +m[1];
+    mm = 0;
+  } else {
+    return null;
+  }
+
+  if (hh < 0 || hh > 23 || mm < 0 || mm > 59) return null;
+  return `${pad(hh)}:${pad(mm)}`;
+}
+
+/**
+ * Normalisasi input tanggal yang longgar ke "YYYY-MM-DD".
+ * Menerima: "2026-06-21", "21-06-2026", "21/6/2026", "21 Juni 2026".
+ * Mengembalikan null jika tidak bisa diparse jadi tanggal valid.
+ */
+export function normalizeDate(input: string | undefined | null): string | null {
+  if (input == null) return null;
+  const s = String(input).trim();
+  if (!s) return null;
+
+  // ISO: 2026-06-21
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (m) return buildDate(+m[1], +m[2], +m[3]);
+
+  // Numerik DMY: 21-06-2026 atau 21/6/2026
+  m = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+  if (m) return buildDate(+m[3], +m[2], +m[1]);
+
+  // Nama bulan: 21 Juni 2026
+  m = s.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/);
+  if (m) {
+    const mo = monthIndex(m[2]);
+    if (mo) return buildDate(+m[3], mo, +m[1]);
+  }
+
+  return null;
+}
+
+function buildDate(year: number, month: number, day: number): string | null {
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  return `${year}-${pad(month)}-${pad(day)}`;
 }

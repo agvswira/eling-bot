@@ -14,7 +14,7 @@ const URL_RE = /^https?:\/\/\S+$/i;
 
 export async function handleLink(
   args: string[],
-  ctx: CommandContext
+  ctx: CommandContext,
 ): Promise<string> {
   const sub = (args[0] || "").toLowerCase();
   const rest = args.slice(1);
@@ -24,11 +24,11 @@ export async function handleLink(
       return add(rest, ctx);
     case "list":
     case "ls":
-      return list();
+      return list(ctx);
     case "cari":
     case "search":
     case "find":
-      return cari(rest.join(" "));
+      return cari(rest.join(" "), ctx);
     case "delete":
     case "del":
     case "hapus":
@@ -51,25 +51,33 @@ async function add(rest: string[], ctx: CommandContext): Promise<string> {
   if (!label.trim()) {
     return "⚠️ Label tidak boleh kosong. Contoh: `!link add PBO https://...`";
   }
-  const l = await store.add({ label, url, addedBy: ctx.sender });
+  const l = await store.add({
+    label,
+    url,
+    addedBy: ctx.sender,
+    groupId: ctx.groupId,
+  });
   return `✅ Link tersimpan!\n🔗 *${l.label}*\n${l.url}\n\n_ID: ${l.id}_`;
 }
 
-async function list(): Promise<string> {
-  const items = await store.getAll();
+async function list(ctx: CommandContext): Promise<string> {
+  const items = await store.getAll(ctx.groupId);
   return formatLinkList(items);
 }
 
-async function cari(keyword: string): Promise<string> {
+async function cari(keyword: string, ctx: CommandContext): Promise<string> {
   if (!keyword.trim()) return "⚠️ Masukkan keyword. Contoh: `!link cari PBO`";
-  const items = await store.search(keyword);
+  const items = await store.search(keyword, ctx.groupId);
   if (items.length === 0) {
     return `🔍 Tidak ada link yang cocok dengan *"${keyword}"*.`;
   }
   return formatLinkList(items, `HASIL PENCARIAN: "${keyword}"`);
 }
 
-async function remove(idStr: string | undefined, ctx: CommandContext): Promise<string> {
+async function remove(
+  idStr: string | undefined,
+  ctx: CommandContext,
+): Promise<string> {
   const id = Number(idStr);
   if (!idStr || Number.isNaN(id)) {
     return "⚠️ Sebutkan ID-nya. Contoh: `!link delete 1`";
