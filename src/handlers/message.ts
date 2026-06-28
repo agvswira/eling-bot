@@ -121,6 +121,11 @@ export async function handleMessage(
     const shouldUseAI = isGroup ? mentioned || isReplyToBot : true;
 
     if (shouldUseAI && isAIEnabled()) {
+      if (isAdmin) {
+        console.log(
+          `[admin] Pesan dari admin (${sender}) diproses dengan bypass.`,
+        );
+      }
       const clean = stripMention(trimmed);
       await sock.sendPresenceUpdate("composing", remoteJid).catch(() => {});
       const reply = await handleMention(clean, { sender, groupId, isAdmin });
