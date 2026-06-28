@@ -91,6 +91,13 @@ export async function handleMessage(
   const sender = numberFromJid(senderJid);
   const isAdmin = ADMIN_NUMBER !== "" && sender === ADMIN_NUMBER;
 
+  // Debug: tampilkan semua info deteksi admin untuk setiap pesan non-command.
+  if (!text.trim().startsWith("!")) {
+    console.log(
+      `[debug] remoteJid=${remoteJid} | isGroup=${isGroup} | senderJid=${senderJid} | sender="${sender}" | ADMIN_NUMBER="${ADMIN_NUMBER}" | isAdmin=${isAdmin}`,
+    );
+  }
+
   const cmdCtx: CommandContext = { sender, groupId, isAdmin };
 
   const trimmed = text.trim();
