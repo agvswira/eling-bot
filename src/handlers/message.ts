@@ -6,6 +6,7 @@ import { isAIEnabled } from "../ai";
 
 const BOT_NAME = (process.env.BOT_NAME || "Eling").toLowerCase();
 const ADMIN_NUMBER = (process.env.ADMIN_NUMBER || "").replace(/\D/g, "");
+const ADMIN_LID = (process.env.ADMIN_LID || "").trim();
 // Set DEBUG=1 di .env untuk melihat log deteksi mention di grup.
 const DEBUG = process.env.DEBUG === "1" || process.env.DEBUG === "true";
 
@@ -89,12 +90,14 @@ export async function handleMessage(
   // Pengirim: di grup pakai participant, di pribadi pakai remoteJid.
   const senderJid = isGroup ? m.key.participant || "" : remoteJid;
   const sender = numberFromJid(senderJid);
-  const isAdmin = ADMIN_NUMBER !== "" && sender === ADMIN_NUMBER;
+  const isAdmin =
+    (ADMIN_NUMBER !== "" && sender === ADMIN_NUMBER) ||
+    (ADMIN_LID !== "" && senderJid === ADMIN_LID);
 
   // Debug: tampilkan semua info deteksi admin untuk setiap pesan non-command.
   if (!text.trim().startsWith("!")) {
     console.log(
-      `[debug] remoteJid=${remoteJid} | isGroup=${isGroup} | senderJid=${senderJid} | sender="${sender}" | ADMIN_NUMBER="${ADMIN_NUMBER}" | isAdmin=${isAdmin}`,
+      `[debug] remoteJid=${remoteJid} | isGroup=${isGroup} | senderJid=${senderJid} | sender="${sender}" | ADMIN_NUMBER="${ADMIN_NUMBER}" | ADMIN_LID="${ADMIN_LID}" | isAdmin=${isAdmin}`,
     );
   }
 
