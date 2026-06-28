@@ -28,7 +28,7 @@ function pushHistory(key: string, msg: ChatMessage): void {
  */
 export async function handleMention(
   text: string,
-  ctx: AIContext
+  ctx: AIContext,
 ): Promise<string> {
   if (!isAIEnabled() || !ai) {
     return "🤖 Maaf, AI Mode sedang nonaktif. Gunakan perintah diawali `!` ya. Ketik `!help`.";
@@ -43,7 +43,7 @@ export async function handleMention(
   const history = getHistory(key);
 
   const messages: ChatMessage[] = [
-    { role: "system", content: buildSystemPrompt() },
+    { role: "system", content: buildSystemPrompt(ctx.isAdmin) },
     ...history,
     { role: "user", content: cleaned },
   ];
@@ -83,7 +83,11 @@ export async function handleMention(
         } catch {
           parsedArgs = {};
         }
-        const result = await executeFunction(call.function.name, parsedArgs, ctx);
+        const result = await executeFunction(
+          call.function.name,
+          parsedArgs,
+          ctx,
+        );
         messages.push({
           role: "tool",
           tool_call_id: call.id,

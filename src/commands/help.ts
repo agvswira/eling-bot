@@ -34,6 +34,7 @@ export function handleInfo(): string {
   return (
     `ℹ️ *Tentang ${BOT_NAME}*\n\n` +
     `Nama *${BOT_NAME}* diambil dari kata Jawa/Bali _eling_ = "ingat / sadar / waspada".\n\n` +
+    `Dibuat oleh: Komang Agus Wira Adnyana 👨‍💻\n\n` +
     `Fungsi bot: selalu mengingatkan & menjaga agar tidak ada tugas yang terlewat. 🔔\n\n` +
     `• Reminder otomatis: H-1 jam 07.00 & 3 jam sebelum deadline\n` +
     `• Penyimpanan link tugas\n` +
